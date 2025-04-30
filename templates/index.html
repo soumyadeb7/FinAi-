@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FinAI - Financial Dashboard</title>
+
+    <!-- Link Local CSS - Preserve original styling -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+
+    <!-- External JS Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        /* Dark Mode with 3D Background Styles - Only add what's needed */
+        /* Preserve all original styles from style.css and only override colors */
+        
+        /* Add 3D background canvas */
+        #background-canvas {
+            position: fixed;
+            display: flex;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            opacity: 0.5;
+        }
+        
+        /* Dark mode overrides - minimal changes to preserve existing sizing */
+        
+        
+        /* Keep original sizing, just update colors */
+        
+        /* Subtle hover effect that doesn't change size */
+        /*section:hover, .sec:hover, .tool-card:hover {
+            background-color: rgba(30, 45, 65, 0.9);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* Table styles for dark mode - structure preserved */
+        /* Important: keep all width, height, grid, and flex settings from the original CSS */
+        /* This style just adds the dark theme on top without modifying layout */
+        
+        
+        /* Keep original Chart.js canvas styles, just update colors in JS */
+    </style>
+</head>
+<body>
+    <!-- 3D Background Canvas -->
+    <canvas id="background-canvas"></canvas>
+
+    <header>
+        <div class="logo-container">
+            <img src="{{ url_for('static', filename='assets/logo.png') }}" alt="FinAI Logo" class="logo" />
+        </div>
+    </header>    
+    
+    <main>
+        <!-- Stock Chart Section -->
+        <section>
+            <h2>Stock Price Chart</h2>
+            <canvas id="metricsChart"></canvas>
+        </section>
+
+        <!-- Company Financial Overview -->
+        <section>
+            <h2>Company Financial Overview</h2>
+            <div class="financial-table-container">
+                <table class="financial-table">
+                    <tr>
+                        <th>Stock Information</th>
+                        <th>Profitability Metrics</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Current Price:</strong> ₹<span id="currentPrice">-</span></td>
+                        <td><strong>PAT:</strong> ₹<span id="pat">-</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>High:</strong> ₹<span id="high">-</span></td>
+                        <td><strong>Reserves:</strong> ₹<span id="reserves">-</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Low:</strong> ₹<span id="low">-</span></td>
+                        <td><strong>Debt to Equity:</strong> <span id="debtToEquity">-</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>M. Cap:</strong> ₹<span id="marketCap">-</span></td>
+                        <td><strong>EV/EBITDA:</strong> <span id="evebitda">-</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Stock PE:</strong> <span id="stockPE">-</span></td>
+                        <td></td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+        <!-- Key Metrics Container -->
+        <div class="key-metrics-container">
+            <div class="sec">
+                <h2>Sales Variation</h2>
+                <canvas id="salesVarChart"></canvas>
+            </div>
+            <div class="sec">
+                <h2>5Y Return</h2>
+                <canvas id="return5yrsChart"></canvas>
+            </div>
+            <div class="sec">
+                <h2>CAGR</h2>
+                <canvas id="cagrChart"></canvas>
+            </div>
+            <div class="sec">
+                <h2>ROE</h2>
+                <canvas id="roeChart"></canvas>
+            </div>
+            <div class="sec">
+                <h2>Profit Variation</h2>
+                <canvas id="profitVarChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Tools Section -->
+        <section class="company-tools">
+            <h2>Financial Management Tools</h2>
+            <div class="tools-container">
+                <div class="tool-card" onclick="handleToolClick('dataAnalysis')">
+                    <h3>Data Analysis & Forecasting</h3>
+                    <p>Analyze trends and predict future performance.</p>
+                </div>
+                <div class="tool-card" onclick="handleToolClick('budgeting')">
+                    <h3>Budgeting</h3>
+                    <p>Plan and manage your company's budget efficiently.</p>
+                </div>
+                <div class="tool-card" onclick="handleToolClick('expenseManagement')">
+                    <h3>Expense Management</h3>
+                    <p>Track and optimize your company's expenses.</p>
+                </div>
+                <div class="tool-card" onclick="handleToolClick('investment')">
+                    <h3>Investment</h3>
+                    <p>Find the best investment strategies for growth.</p>
+                </div>
+                <div class="tool-card" onclick="handleToolClick('chatbot')">
+                    <h3>Chatbot</h3>
+                    <p>AI-powered chatbot for business insights.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Local JS File -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+    <!-- 3D Background Script -->
+    <script>
+    // Initialize Three.js scene
+    function initBackground() {
+        const canvas = document.getElementById('background-canvas');
+        const renderer = new THREE.WebGLRenderer({
+            canvas: canvas,
+            antialias: true,
+            alpha: true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 20;
+
+        // Create a grid of floating particles
+        const particleGroup = new THREE.Group();
+        const particleCount = 300;
+
+        // Dark mode theme colors - deeper blues and glowing accents
+        const colors = [
+            0x3a6073, // Deep blue
+            0x4b79a1, // Medium blue
+            0x00a1ff, // Bright blue accent
+            0x0077be, // Ocean blue
+            0x87ceeb  // Sky blue accent
+        ];
+
+        const particleGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+        
+        for (let i = 0; i < particleCount; i++) {
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const material = new THREE.MeshBasicMaterial({ 
+                color: color, 
+                transparent: true, 
+                opacity: 0.5 + Math.random() * 0.5
+            });
+            
+            const particle = new THREE.Mesh(particleGeometry, material);
+            
+            // Position particles in a wider space
+            particle.position.set(
+                (Math.random() - 0.5) * 60,
+                (Math.random() - 0.5) * 40,
+                (Math.random() - 0.5) * 30
+            );
+            
+            // Store original position for animation
+            particle.userData.originalPosition = {...particle.position};
+            particle.userData.speed = 0.0005 + Math.random() * 0.001;
+            particle.userData.amplitude = 0.5 + Math.random() * 1;
+            
+            particleGroup.add(particle);
+        }
+        
+        scene.add(particleGroup);
+
+        // Add lines connecting some particles
+        const linesMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x3a6073, 
+            transparent: true, 
+            opacity: 0.2
+        });
+        
+        for (let i = 0; i < particleCount / 2; i++) {
+            const p1 = particleGroup.children[Math.floor(Math.random() * particleCount)];
+            const p2 = particleGroup.children[Math.floor(Math.random() * particleCount)];
+            
+            if (p1 !== p2) {
+                const linesGeometry = new THREE.BufferGeometry().setFromPoints([
+                    p1.position,
+                    p2.position
+                ]);
+                const line = new THREE.Line(linesGeometry, linesMaterial);
+                scene.add(line);
+            }
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Animation function
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Rotate particle group slowly
+            particleGroup.rotation.y += 0.0005;
+            
+            // Animate individual particles
+            particleGroup.children.forEach(particle => {
+                const originalPos = particle.userData.originalPosition;
+                const time = Date.now() * particle.userData.speed;
+                
+                // Subtle floating animation
+                particle.position.y = originalPos.y + Math.sin(time) * particle.userData.amplitude;
+                particle.position.x = originalPos.x + Math.cos(time * 0.5) * (particle.userData.amplitude * 0.5);
+                
+                // Subtle pulsing effect
+                const scale = 1 + Math.sin(time * 2) * 0.2;
+                particle.scale.set(scale, scale, scale);
+            });
+            
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+
+        // Add mouse interactivity
+        let mouseX = 0, mouseY = 0;
+        document.addEventListener('mousemove', (event) => {
+            mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            // Subtle camera movement based on mouse position
+            camera.position.x += (mouseX * 3 - camera.position.x) * 0.01;
+            camera.position.y += (mouseY * 3 - camera.position.y) * 0.01;
+            camera.lookAt(scene.position);
+        });
+        
+        // Add script to update Chart.js configuration for dark mode
+        const chartStyleScript = document.createElement('script');
+        chartStyleScript.innerHTML = `
+            // Add this to your existing Chart.js configurations
+            Chart.defaults.color = "#e6e6e6";
+            Chart.defaults.borderColor = "rgba(59, 89, 152, 0.2)";
+            
+            // If you need to update existing charts:
+            document.addEventListener('DOMContentLoaded', function() {
+                // Wait for charts to initialize in your main script
+                setTimeout(() => {
+                    // Find all canvas elements that might contain charts
+                    document.querySelectorAll('canvas').forEach(canvas => {
+                        const chart = Chart.getChart(canvas);
+                        if (chart) {
+                            // Only update color properties, not sizes
+                            if (chart.options.plugins && chart.options.plugins.legend) {
+                                chart.options.plugins.legend.labels.color = "#e6e6e6";
+                            }
+                            
+                            // Update grid colors but preserve grid sizes
+                            if (chart.options.scales) {
+                                for (const axisKey in chart.options.scales) {
+                                    const axis = chart.options.scales[axisKey];
+                                    if (axis.grid) {
+                                        axis.grid.color = "rgba(59, 89, 152, 0.2)";
+                                    }
+                                    if (axis.ticks) {
+                                        axis.ticks.color = "#e6e6e6";
+                                    }
+                                }
+                            }
+                            
+                            chart.update();
+                        }
+                    });
+                }, 500); // Small delay to ensure charts are initialized
+            });
+        `;
+        document.body.appendChild(chartStyleScript);
+    }
+
+    // Initialize the background on page load
+    window.addEventListener('load', initBackground);
+    </script>
+</body>
+</html>
